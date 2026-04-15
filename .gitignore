@@ -24,6 +24,8 @@ bin/
 hs_err_pid*
 replay_pid*
 
+!spring-server/gradle/wrapper/gradle-wrapper.jar
+
 # Logs
 logs/
 *.log
