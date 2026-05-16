@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+langserve
+sse-starlette
+langchain
+langchain-community
+langchain-text-splitters
+langchain-ollama
+python-dotenv
+faiss-cpu
+pdfplumber
