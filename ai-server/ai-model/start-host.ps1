@@ -2,8 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Ngrok = Join-Path $Root ".tools\ngrok\ngrok.exe"
-$PublicUrl = "https://dividable-surcharge-stump.ngrok-free.dev"
-$LangServeUrl = "http://127.0.0.1:8000"
+$LangServePort = if ($env:PORT) { [int]$env:PORT } else { 8000 }
+$LangServeUrl = "http://127.0.0.1:$LangServePort"
+$PublicUrl = if ($env:NGROK_PUBLIC_URL) { $env:NGROK_PUBLIC_URL } else { "https://dividable-surcharge-stump.ngrok-free.dev" }
 $OllamaUrl = "http://127.0.0.1:11434/api/tags"
 
 function Test-HttpEndpoint {
@@ -50,7 +51,7 @@ else {
     Write-Host "Starting LangServe on $LangServeUrl"
     Start-Process `
         -FilePath "python" `
-        -ArgumentList @("-m", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000") `
+        -ArgumentList @("-m", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "$LangServePort") `
         -WorkingDirectory $Root `
         -WindowStyle Hidden | Out-Null
     Start-Sleep -Seconds 5
@@ -70,7 +71,7 @@ catch {
 Write-Host "Starting ngrok at $PublicUrl"
 Start-Process `
     -FilePath $Ngrok `
-    -ArgumentList @("http", "8000", "--url=$PublicUrl") `
+    -ArgumentList @("http", "$LangServePort", "--url=$PublicUrl") `
     -WorkingDirectory $Root `
     -WindowStyle Hidden | Out-Null
 

@@ -1,51 +1,82 @@
-import os
+import logging
 from pathlib import Path
-from typing import List, Union
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.responses import RedirectResponse
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from fastapi.responses import HTMLResponse, RedirectResponse
 from langserve import add_routes
-from pydantic import BaseModel, Field
 
 try:
     from .chains import ChatChain, LLM, TopicChain, Translator
+    from .config import get_settings
+    from .exceptions import register_exception_handlers
+    from .logging_config import configure_logging
     from .rag import RagChain
+    from .schemas import AskInput, InputChat
 except ImportError:
     from chains import ChatChain, LLM, TopicChain, Translator
+    from config import get_settings
+    from exceptions import register_exception_handlers
+    from logging_config import configure_logging
     from rag import RagChain
+    from schemas import AskInput, InputChat
 
 
 load_dotenv()
+settings = get_settings()
+configure_logging(settings.log_level)
+logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title=settings.app_name)
+register_exception_handlers(app)
 
+allow_credentials = not (len(settings.cors_origins) == 1 and settings.cors_origins[0] == "*")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
 
-class InputChat(BaseModel):
-    messages: List[Union[HumanMessage, AIMessage, SystemMessage]] = Field(
-        ...,
-        description="The chat messages representing the current conversation.",
-    )
+def build_topic_chain():
+    return TopicChain(
+        model=settings.model_name,
+        temperature=settings.model_temperature,
+    ).create()
 
 
-class AskInput(BaseModel):
-    topic: str = Field(..., description="Question or topic to send to the model.")
+topic_chain = build_topic_chain()
 
 
-topic_chain = TopicChain().create()
+def find_rag_file() -> Path | None:
+    if settings.rag_file_path:
+        path = Path(settings.rag_file_path).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        return path if path.is_file() else None
+
+    data_dir = Path(__file__).resolve().parent / "data"
+    return next(data_dir.glob("*.pdf"), None) if data_dir.is_dir() else None
+
+
+def is_ollama_ready() -> tuple[bool, str]:
+    ollama_url = f"{settings.ollama_base_url.rstrip('/')}/api/tags"
+    try:
+        with urlopen(ollama_url, timeout=3) as response:
+            if response.status < 400:
+                return True, "ok"
+            return False, f"unexpected status: {response.status}"
+    except URLError as exc:
+        return False, str(exc.reason)
+    except Exception as exc:
+        return False, str(exc)
 
 
 @app.get("/")
@@ -53,11 +84,11 @@ async def home():
     return HTMLResponse(
         """
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Model</title>
+  <title>AI Model Server</title>
   <style>
     body { margin: 0; font-family: Segoe UI, sans-serif; background: #f6f7f9; color: #15171a; }
     main { max-width: 820px; margin: 0 auto; padding: 40px 20px; }
@@ -71,12 +102,12 @@ async def home():
 </head>
 <body>
   <main>
-    <h1>AI Model</h1>
+    <h1>AI Model Server</h1>
     <form id="ask-form">
-      <textarea id="topic" placeholder="질문을 입력하세요">딥러닝에 대해서 알려줘</textarea>
-      <button id="submit" type="submit">질문하기</button>
+      <textarea id="topic" placeholder="Type your question here"></textarea>
+      <button id="submit" type="submit">Ask</button>
     </form>
-    <pre id="answer">답변이 여기에 표시됩니다.</pre>
+    <pre id="answer">Response will be shown here.</pre>
   </main>
   <script>
     const form = document.getElementById("ask-form");
@@ -87,7 +118,7 @@ async def home():
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       submit.disabled = true;
-      answer.textContent = "생성 중...";
+      answer.textContent = "Generating...";
 
       try {
         const response = await fetch("/ask", {
@@ -96,7 +127,7 @@ async def home():
           body: JSON.stringify({ topic: topic.value })
         });
         const data = await response.json();
-        answer.textContent = data.answer || data.detail || "응답이 비어 있습니다.";
+        answer.textContent = data.answer || data.detail || "No response returned.";
       } catch (error) {
         answer.textContent = error.message;
       } finally {
@@ -110,9 +141,30 @@ async def home():
     )
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/ready")
+async def ready(response: Response):
+    ollama_ok, ollama_detail = is_ollama_ready()
+    ready_state = ollama_ok
+    if not ready_state:
+        response.status_code = 503
+
+    return {
+        "status": "ready" if ready_state else "not_ready",
+        "checks": {
+            "ollama": {"ok": ollama_ok, "detail": ollama_detail},
+        },
+    }
+
+
 @app.post("/ask")
 async def ask(payload: AskInput):
-    return {"answer": await topic_chain.ainvoke({"topic": payload.topic})}
+    cleaned_topic = payload.topic.strip()
+    return {"answer": await topic_chain.ainvoke({"topic": cleaned_topic})}
 
 
 @app.get("/topic/playground", include_in_schema=False)
@@ -121,12 +173,22 @@ async def playground_redirect():
     return RedirectResponse("/")
 
 
-add_routes(app, Translator().create(), path="/translate", disabled_endpoints=["playground"])
-add_routes(app, LLM().create(), path="/llm", disabled_endpoints=["playground"])
+add_routes(
+    app,
+    Translator(model=settings.model_name, temperature=settings.model_temperature).create(),
+    path="/translate",
+    disabled_endpoints=["playground"],
+)
+add_routes(
+    app,
+    LLM(model=settings.model_name, temperature=settings.model_temperature).create(),
+    path="/llm",
+    disabled_endpoints=["playground"],
+)
 add_routes(app, topic_chain, path="/topic", disabled_endpoints=["playground"])
 add_routes(
     app,
-    ChatChain().create().with_types(input_type=InputChat),
+    ChatChain(model=settings.model_name).create().with_types(input_type=InputChat),
     path="/chat",
     enable_feedback_endpoint=True,
     enable_public_trace_link_endpoint=True,
@@ -135,24 +197,24 @@ add_routes(
 )
 
 
-def find_rag_file() -> Path | None:
-    env_path = os.getenv("RAG_FILE_PATH")
-    if env_path:
-        path = Path(env_path).expanduser()
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        return path if path.is_file() else None
-
-    data_dir = Path(__file__).resolve().parent / "data"
-    return next(data_dir.glob("*.pdf"), None) if data_dir.is_dir() else None
-
-
 rag_file = find_rag_file()
 if rag_file:
-    add_routes(app, RagChain(file_path=str(rag_file)).create(), path="/rag")
+    try:
+        add_routes(
+            app,
+            RagChain(
+                file_path=str(rag_file),
+                model=settings.model_name,
+                embedding_model=settings.rag_embedding_model,
+            ).create(),
+            path="/rag",
+        )
+        logger.info("RAG route enabled with %s", rag_file)
+    except Exception as exc:
+        logger.exception("Failed to initialize RAG route: %s", exc)
 else:
-    print("Skipping /rag route because no PDF was found. Set RAG_FILE_PATH or add a PDF to app/data.")
+    logger.warning("Skipping /rag route because no PDF was found.")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.host, port=settings.port)

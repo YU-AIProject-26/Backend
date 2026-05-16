@@ -6,20 +6,25 @@ from langchain_ollama import ChatOllama
 
 try:
     from .base import BaseChain
+    from .config import get_settings
 except ImportError:
     from base import BaseChain
+    from config import get_settings
 
 
-DEFAULT_MODEL = "eeve_q40:latest"
-DEFAULT_NUM_PREDICT = 512
-DEFAULT_REPEAT_PENALTY = 1.1
-DEFAULT_STOP = ["<s>", "</s>", "<|im_end|>", "Human:"]
+SETTINGS = get_settings()
+
+DEFAULT_MODEL = SETTINGS.model_name
+DEFAULT_NUM_PREDICT = SETTINGS.model_num_predict
+DEFAULT_REPEAT_PENALTY = SETTINGS.model_repeat_penalty
+DEFAULT_STOP = SETTINGS.model_stop
 
 
-def create_llm(model: str, temperature: float):
+def create_llm(model: str, temperature: Optional[float] = None):
+    resolved_temperature = SETTINGS.model_temperature if temperature is None else temperature
     return ChatOllama(
         model=model,
-        temperature=temperature,
+        temperature=resolved_temperature,
         num_predict=DEFAULT_NUM_PREDICT,
         repeat_penalty=DEFAULT_REPEAT_PENALTY,
         stop=DEFAULT_STOP,
@@ -81,7 +86,12 @@ class ChatChain(BaseChain):
 
 
 class LLM(BaseChain):
-    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0, **kwargs):
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        temperature: float = SETTINGS.model_temperature,
+        **kwargs,
+    ):
         super().__init__(model, temperature, **kwargs)
 
     def setup(self):
@@ -113,8 +123,3 @@ class Translator(BaseChain):
         )
 
         return prompt | llm | StrOutputParser()
-
-
-prompt = ChatPromptTemplate.from_template("Explain this topic briefly in Korean: {topic}")
-llm = create_llm(DEFAULT_MODEL, 0)
-chain = prompt | llm | StrOutputParser()
