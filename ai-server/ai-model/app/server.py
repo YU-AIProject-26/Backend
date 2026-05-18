@@ -5,7 +5,7 @@ from urllib.request import urlopen
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from langserve import add_routes
@@ -15,15 +15,17 @@ try:
     from .config import get_settings
     from .exceptions import register_exception_handlers
     from .logging_config import configure_logging
+    from .meeting_summary import MeetingSummaryChain
     from .rag import RagChain
-    from .schemas import AskInput, InputChat
+    from .schemas import AskInput, InputChat, MeetingSummaryInput
 except ImportError:
     from chains import ChatChain, LLM, TopicChain, Translator
     from config import get_settings
     from exceptions import register_exception_handlers
     from logging_config import configure_logging
+    from meeting_summary import MeetingSummaryChain
     from rag import RagChain
-    from schemas import AskInput, InputChat
+    from schemas import AskInput, InputChat, MeetingSummaryInput
 
 
 load_dotenv()
@@ -53,6 +55,14 @@ def build_topic_chain():
 
 
 topic_chain = build_topic_chain()
+meeting_summary_chain = MeetingSummaryChain(
+    model=settings.model_name,
+    temperature=settings.meeting_temperature,
+    chunk_size=settings.meeting_chunk_size,
+    chunk_overlap=settings.meeting_chunk_overlap,
+    max_chunks=settings.meeting_max_chunks,
+    parse_retries=settings.meeting_parse_retries,
+)
 
 
 def find_rag_file() -> Path | None:
@@ -165,6 +175,14 @@ async def ready(response: Response):
 async def ask(payload: AskInput):
     cleaned_topic = payload.topic.strip()
     return {"answer": await topic_chain.ainvoke({"topic": cleaned_topic})}
+
+
+@app.post("/meeting/summary")
+async def summarize_meeting(payload: MeetingSummaryInput):
+    try:
+        return await meeting_summary_chain.ainvoke(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/topic/playground", include_in_schema=False)
