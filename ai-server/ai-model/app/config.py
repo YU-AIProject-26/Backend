@@ -3,6 +3,15 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+
+# Always load the project-level .env before reading settings so import order
+# does not lock defaults into the cache.
+PROJECT_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+if PROJECT_ENV_PATH.is_file():
+    load_dotenv(dotenv_path=PROJECT_ENV_PATH)
+
 
 def _to_int(value: str, default: int) -> int:
     try:
@@ -43,6 +52,11 @@ class Settings:
     rag_chunk_overlap: int
     rag_top_k: int
     rag_index_dir: Path
+    meeting_chunk_size: int
+    meeting_chunk_overlap: int
+    meeting_max_chunks: int
+    meeting_temperature: float
+    meeting_parse_retries: int
 
 
 @lru_cache(maxsize=1)
@@ -68,4 +82,9 @@ def get_settings() -> Settings:
         rag_chunk_overlap=_to_int(os.getenv("RAG_CHUNK_OVERLAP", "50"), 50),
         rag_top_k=_to_int(os.getenv("RAG_TOP_K", "4"), 4),
         rag_index_dir=Path(os.getenv("RAG_INDEX_DIR", ".cache/faiss-index")),
+        meeting_chunk_size=_to_int(os.getenv("MEETING_CHUNK_SIZE", "2000"), 2000),
+        meeting_chunk_overlap=_to_int(os.getenv("MEETING_CHUNK_OVERLAP", "200"), 200),
+        meeting_max_chunks=_to_int(os.getenv("MEETING_MAX_CHUNKS", "24"), 24),
+        meeting_temperature=_to_float(os.getenv("MEETING_TEMPERATURE", "0.1"), 0.1),
+        meeting_parse_retries=_to_int(os.getenv("MEETING_PARSE_RETRIES", "1"), 1),
     )
