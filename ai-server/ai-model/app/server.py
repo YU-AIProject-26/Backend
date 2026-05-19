@@ -5,10 +5,12 @@ from urllib.request import urlopen
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, Response, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from langserve import add_routes
+
+from voice_analyzer.pipeline import lifespan, analyze_voice_meeting
 
 try:
     from .chains import ChatChain, LLM, TopicChain, Translator
@@ -33,7 +35,7 @@ settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title=settings.app_name)
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 register_exception_handlers(app)
 
 allow_credentials = not (len(settings.cors_origins) == 1 and settings.cors_origins[0] == "*")
@@ -214,6 +216,13 @@ add_routes(
     disabled_endpoints=["playground"],
 )
 
+@app.post("/api/analyze-meeting", summary="음성 회의록 화자분리 및 요약 분석")
+async def analyze_meeting(file: UploadFile = File(...)):
+    """
+    프론트엔드 또는 백엔드에서 오디오 파일을 POST로 전송하면,
+    화자 분리 -> STT -> LangChain 요약 후 회의록 JSON 반환.
+    """
+    return await analyze_voice_meeting(file)
 
 rag_file = find_rag_file()
 if rag_file:
