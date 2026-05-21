@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -39,6 +41,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean privacyPolicyAgreed;
 
+    @Column(nullable = false)
+    private boolean deleted;
+
+    @Column
+    private LocalDateTime deletedAt;
+
     @Builder
     private User(
             String email,
@@ -47,7 +55,9 @@ public class User extends BaseEntity {
             UserRole role,
             boolean emailVerified,
             boolean termsAgreed,
-            boolean privacyPolicyAgreed
+            boolean privacyPolicyAgreed,
+            boolean deleted,
+            LocalDateTime deletedAt
     ) {
         this.email = email;
         this.password = password;
@@ -56,6 +66,8 @@ public class User extends BaseEntity {
         this.emailVerified = emailVerified;
         this.termsAgreed = termsAgreed;
         this.privacyPolicyAgreed = privacyPolicyAgreed;
+        this.deleted = deleted;
+        this.deletedAt = deletedAt;
     }
 
     public static User create(
@@ -73,6 +85,8 @@ public class User extends BaseEntity {
                 .emailVerified(false)
                 .termsAgreed(termsAgreed)
                 .privacyPolicyAgreed(privacyPolicyAgreed)
+                .deleted(false)
+                .deletedAt(null)
                 .build();
     }
 
@@ -86,5 +100,10 @@ public class User extends BaseEntity {
 
     public void changeNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void softDelete() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 }
