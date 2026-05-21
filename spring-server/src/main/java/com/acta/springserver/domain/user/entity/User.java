@@ -79,4 +79,8 @@ public class User extends BaseEntity {
     public void verifyEmail() {
         this.emailVerified = true;
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }
