@@ -34,7 +34,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
 
     public EmailCheckResponseDto checkEmailDuplicate(String email) {
-        boolean exists = userRepository.existsByEmailAndDeletedFalse(email);
+        boolean exists = userRepository.existsByEmail(email);
 
         return EmailCheckResponseDto.builder()
                 .available(!exists)
@@ -43,7 +43,7 @@ public class AuthService {
 
     @Transactional
     public void sendVerificationCode(String email) {
-        if (userRepository.existsByEmailAndDeletedFalse(email)) {
+        if (userRepository.existsByEmail(email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
@@ -92,7 +92,7 @@ public class AuthService {
             boolean termsAgreed,
             boolean privacyPolicyAgreed
     ) {
-        if (userRepository.existsByEmailAndDeletedFalse(email)) {
+        if (userRepository.existsByEmail(email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
