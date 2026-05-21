@@ -22,7 +22,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String password;
 
     @Column(nullable = false, unique = true, length = 30)
@@ -47,6 +47,13 @@ public class User extends BaseEntity {
     @Column
     private LocalDateTime deletedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SocialProvider socialProvider;
+
+    @Column(length = 100)
+    private String providerUserId;
+
     @Builder
     private User(
             String email,
@@ -57,7 +64,9 @@ public class User extends BaseEntity {
             boolean termsAgreed,
             boolean privacyPolicyAgreed,
             boolean deleted,
-            LocalDateTime deletedAt
+            LocalDateTime deletedAt,
+            SocialProvider socialProvider,
+            String providerUserId
     ) {
         this.email = email;
         this.password = password;
@@ -68,6 +77,8 @@ public class User extends BaseEntity {
         this.privacyPolicyAgreed = privacyPolicyAgreed;
         this.deleted = deleted;
         this.deletedAt = deletedAt;
+        this.socialProvider = socialProvider;
+        this.providerUserId = providerUserId;
     }
 
     public static User create(
@@ -87,6 +98,29 @@ public class User extends BaseEntity {
                 .privacyPolicyAgreed(privacyPolicyAgreed)
                 .deleted(false)
                 .deletedAt(null)
+                .socialProvider(SocialProvider.LOCAL)
+                .providerUserId(null)
+                .build();
+    }
+
+    public static User createSocialUser(
+            String email,
+            String nickname,
+            SocialProvider socialProvider,
+            String providerUserId
+    ) {
+        return User.builder()
+                .email(email)
+                .password(null)
+                .nickname(nickname)
+                .role(UserRole.USER)
+                .emailVerified(true)
+                .termsAgreed(true)
+                .privacyPolicyAgreed(true)
+                .deleted(false)
+                .deletedAt(null)
+                .socialProvider(socialProvider)
+                .providerUserId(providerUserId)
                 .build();
     }
 
