@@ -25,6 +25,10 @@ public class EmailVerification extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String code;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private EmailVerificationPurpose purpose;
+
     @Column(nullable = false)
     private boolean verified;
 
@@ -32,17 +36,30 @@ public class EmailVerification extends BaseEntity {
     private LocalDateTime expiredAt;
 
     @Builder
-    private EmailVerification(String email, String code, boolean verified, LocalDateTime expiredAt) {
+    private EmailVerification(
+            String email,
+            String code,
+            EmailVerificationPurpose purpose,
+            boolean verified,
+            LocalDateTime expiredAt
+    ) {
         this.email = email;
         this.code = code;
+        this.purpose = purpose;
         this.verified = verified;
         this.expiredAt = expiredAt;
     }
 
-    public static EmailVerification create(String email, String code, LocalDateTime expiredAt) {
+    public static EmailVerification create(
+            String email,
+            String code,
+            EmailVerificationPurpose purpose,
+            LocalDateTime expiredAt
+    ) {
         return EmailVerification.builder()
                 .email(email)
                 .code(code)
+                .purpose(purpose)
                 .verified(false)
                 .expiredAt(expiredAt)
                 .build();
