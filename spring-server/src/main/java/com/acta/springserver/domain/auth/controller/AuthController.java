@@ -5,6 +5,8 @@ import com.acta.springserver.domain.auth.dto.EmailCheckRequestDto;
 import com.acta.springserver.domain.auth.dto.EmailCheckResponseDto;
 import com.acta.springserver.domain.auth.dto.EmailSendCodeRequestDto;
 import com.acta.springserver.domain.auth.dto.EmailVerifyCodeRequestDto;
+import com.acta.springserver.domain.auth.dto.SignupRequestDto;
+import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,5 +46,18 @@ public class AuthController {
     ) {
         authService.verifyCode(request.getEmail(), request.getCode());
         return ApiResponse.success("이메일 인증이 완료되었습니다.", null);
+    }
+
+    @PostMapping("/signup")
+    public ApiResponse<SignupResponseDto> signup(
+            @Valid @RequestBody SignupRequestDto request
+    ) {
+        SignupResponseDto response = authService.signup(
+                request.getNickname(),
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return ApiResponse.success("회원가입이 완료되었습니다.", response);
     }
 }
