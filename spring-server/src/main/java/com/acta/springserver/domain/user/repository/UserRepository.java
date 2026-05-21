@@ -1,5 +1,6 @@
 package com.acta.springserver.domain.user.repository;
 
+import com.acta.springserver.domain.user.entity.SocialProvider;
 import com.acta.springserver.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,4 +17,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailAndDeletedFalse(String email);
 
     Optional<User> findByIdAndDeletedFalse(Long id);
+
+    Optional<User> findByNicknameAndDeletedFalse(String nickname);
+
+    Optional<User> findBySocialProviderAndProviderUserIdAndDeletedFalse(
+            SocialProvider socialProvider,
+            String providerUserId
+    );
 }
