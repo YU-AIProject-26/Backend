@@ -25,7 +25,7 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
     @Column(length = 255)
@@ -116,7 +116,7 @@ public class User extends BaseEntity {
             String providerUserId
     ) {
         return User.builder()
-                .email(email)
+                .email(resolveSocialEmail(email, socialProvider, providerUserId))
                 .password(null)
                 .nickname(nickname)
                 .role(UserRole.USER)
@@ -128,6 +128,17 @@ public class User extends BaseEntity {
                 .socialProvider(socialProvider)
                 .providerUserId(providerUserId)
                 .build();
+    }
+
+    private static String resolveSocialEmail(
+            String email,
+            SocialProvider socialProvider,
+            String providerUserId
+    ) {
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+        return "social_" + socialProvider.name().toLowerCase() + "_" + providerUserId;
     }
 
     public void verifyEmail() {
