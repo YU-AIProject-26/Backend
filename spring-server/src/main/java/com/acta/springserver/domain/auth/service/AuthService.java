@@ -72,7 +72,13 @@ public class AuthService {
     }
 
     @Transactional
-    public SignupResponseDto signup(String nickname, String email, String password) {
+    public SignupResponseDto signup(
+            String nickname,
+            String email,
+            String password,
+            boolean termsAgreed,
+            boolean privacyPolicyAgreed
+    ) {
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -94,7 +100,13 @@ public class AuthService {
 
         String encodedPassword = passwordEncoder.encode(password);
 
-        User user = User.create(email, encodedPassword, nickname);
+        User user = User.create(
+                email,
+                encodedPassword,
+                nickname,
+                termsAgreed,
+                privacyPolicyAgreed
+        );
         user.verifyEmail();
 
         User savedUser = userRepository.save(user);
