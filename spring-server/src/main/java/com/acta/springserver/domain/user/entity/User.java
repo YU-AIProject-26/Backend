@@ -83,4 +83,8 @@ public class User extends BaseEntity {
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
 }
