@@ -24,7 +24,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/api/auth/check-email",
-                                "/api/auth/email/send-code"
+                                "/api/auth/email/send-code",
+                                "/api/auth/email/verify-code"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
