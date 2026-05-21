@@ -2,6 +2,9 @@ package com.acta.springserver.global.config;
 
 import com.acta.springserver.global.security.JwtAuthenticationEntryPoint;
 import com.acta.springserver.global.security.JwtAuthenticationFilter;
+import com.acta.springserver.global.security.oauth.CustomOAuth2UserService;
+import com.acta.springserver.global.security.oauth.OAuth2LoginFailureHandler;
+import com.acta.springserver.global.security.oauth.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +20,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oauth2LoginFailureHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -45,9 +51,18 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/password/send-code",
                                 "/api/auth/password/verify-code",
-                                "/api/auth/password/reset"
+                                "/api/auth/password/reset",
+                                "/oauth2/**",
+                                "/login/oauth2/**"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oauth2LoginSuccessHandler)
+                        .failureHandler(oauth2LoginFailureHandler)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
