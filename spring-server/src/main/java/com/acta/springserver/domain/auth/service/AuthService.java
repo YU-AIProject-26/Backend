@@ -1,12 +1,15 @@
 package com.acta.springserver.domain.auth.service;
 
 import com.acta.springserver.domain.auth.dto.EmailCheckResponseDto;
+import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.entity.EmailVerification;
 import com.acta.springserver.domain.auth.repository.EmailVerificationRepository;
+import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
 import com.acta.springserver.global.exception.BusinessException;
 import com.acta.springserver.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
     private final MailService mailService;
+    private final PasswordEncoder passwordEncoder;
 
     public EmailCheckResponseDto checkEmailDuplicate(String email) {
         boolean exists = userRepository.existsByEmail(email);
@@ -65,6 +69,41 @@ public class AuthService {
         }
 
         emailVerification.markVerified();
+    }
+
+    @Transactional
+    public SignupResponseDto signup(String nickname, String email, String password) {
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        if (userRepository.existsByNickname(nickname)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        EmailVerification emailVerification = emailVerificationRepository.findTopByEmailOrderByCreatedAtDesc(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+        if (!emailVerification.isVerified()) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        if (emailVerification.isExpired()) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED);
+        }
+
+        String encodedPassword = passwordEncoder.encode(password);
+
+        User user = User.create(email, encodedPassword, nickname);
+        user.verifyEmail();
+
+        User savedUser = userRepository.save(user);
+
+        return SignupResponseDto.builder()
+                .userId(savedUser.getId())
+                .email(savedUser.getEmail())
+                .nickname(savedUser.getNickname())
+                .build();
     }
 
     private String generateVerificationCode() {
