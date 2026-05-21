@@ -33,22 +33,46 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean emailVerified;
 
+    @Column(nullable = false)
+    private boolean termsAgreed;
+
+    @Column(nullable = false)
+    private boolean privacyPolicyAgreed;
+
     @Builder
-    private User(String email, String password, String nickname, UserRole role, boolean emailVerified) {
+    private User(
+            String email,
+            String password,
+            String nickname,
+            UserRole role,
+            boolean emailVerified,
+            boolean termsAgreed,
+            boolean privacyPolicyAgreed
+    ) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.role = role;
         this.emailVerified = emailVerified;
+        this.termsAgreed = termsAgreed;
+        this.privacyPolicyAgreed = privacyPolicyAgreed;
     }
 
-    public static User create(String email, String password, String nickname) {
+    public static User create(
+            String email,
+            String password,
+            String nickname,
+            boolean termsAgreed,
+            boolean privacyPolicyAgreed
+    ) {
         return User.builder()
                 .email(email)
                 .password(password)
                 .nickname(nickname)
                 .role(UserRole.USER)
                 .emailVerified(false)
+                .termsAgreed(termsAgreed)
+                .privacyPolicyAgreed(privacyPolicyAgreed)
                 .build();
     }
 
