@@ -1,5 +1,6 @@
 package com.acta.springserver.global.security;
 
+import com.acta.springserver.domain.auth.repository.BlacklistedTokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String JWT_EXCEPTION_ATTRIBUTE = "jwtException";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
 
     @Override
     protected void doFilterInternal(
@@ -31,8 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             if (token != null) {
-                Authentication authentication = jwtTokenProvider.getAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (blacklistedTokenRepository.existsByToken(token)) {
+                    SecurityContextHolder.clearContext();
+                } else {
+                    Authentication authentication = jwtTokenProvider.getAuthentication(token);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         } catch (Exception e) {
             request.setAttribute(JWT_EXCEPTION_ATTRIBUTE, e);
