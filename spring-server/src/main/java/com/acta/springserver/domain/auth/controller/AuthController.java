@@ -7,6 +7,9 @@ import com.acta.springserver.domain.auth.dto.EmailSendCodeRequestDto;
 import com.acta.springserver.domain.auth.dto.EmailVerifyCodeRequestDto;
 import com.acta.springserver.domain.auth.dto.LoginRequestDto;
 import com.acta.springserver.domain.auth.dto.LoginResponseDto;
+import com.acta.springserver.domain.auth.dto.PasswordResetRequestDto;
+import com.acta.springserver.domain.auth.dto.PasswordSendCodeRequestDto;
+import com.acta.springserver.domain.auth.dto.PasswordVerifyCodeRequestDto;
 import com.acta.springserver.domain.auth.dto.SignupRequestDto;
 import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.service.AuthService;
@@ -83,5 +86,33 @@ public class AuthController {
     ) {
         authService.logout(authorizationHeader);
         return ApiResponse.success("로그아웃이 완료되었습니다.", null);
+    }
+
+    @PostMapping("/password/send-code")
+    public ApiResponse<Void> sendPasswordResetCode(
+            @Valid @RequestBody PasswordSendCodeRequestDto request
+    ) {
+        authService.sendPasswordResetCode(request.getEmail());
+        return ApiResponse.success("비밀번호 재설정 인증 코드가 이메일로 발송되었습니다.", null);
+    }
+
+    @PostMapping("/password/verify-code")
+    public ApiResponse<Void> verifyPasswordResetCode(
+            @Valid @RequestBody PasswordVerifyCodeRequestDto request
+    ) {
+        authService.verifyPasswordResetCode(request.getEmail(), request.getCode());
+        return ApiResponse.success("비밀번호 재설정 인증이 완료되었습니다.", null);
+    }
+
+    @PostMapping("/password/reset")
+    public ApiResponse<Void> resetPassword(
+            @Valid @RequestBody PasswordResetRequestDto request
+    ) {
+        authService.resetPassword(
+                request.getEmail(),
+                request.getCode(),
+                request.getNewPassword()
+        );
+        return ApiResponse.success("비밀번호가 성공적으로 변경되었습니다.", null);
     }
 }
