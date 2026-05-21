@@ -20,7 +20,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     public MyInfoResponseDto getMyInfo(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         return MyInfoResponseDto.builder()
@@ -35,10 +35,10 @@ public class UserService {
 
     @Transactional
     public NicknameUpdateResponseDto updateMyNickname(Long userId, String nickname) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if (!user.getNickname().equals(nickname) && userRepository.existsByNickname(nickname)) {
+        if (!user.getNickname().equals(nickname) && userRepository.existsByNicknameAndDeletedFalse(nickname)) {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
@@ -52,9 +52,9 @@ public class UserService {
 
     @Transactional
     public void deleteMyAccount(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        userRepository.delete(user);
+        user.softDelete();
     }
 }
