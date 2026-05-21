@@ -1,6 +1,7 @@
 package com.acta.springserver.domain.auth.service;
 
 import com.acta.springserver.domain.auth.dto.EmailCheckResponseDto;
+import com.acta.springserver.domain.auth.dto.LoginResponseDto;
 import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.entity.EmailVerification;
 import com.acta.springserver.domain.auth.repository.EmailVerificationRepository;
@@ -8,6 +9,7 @@ import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
 import com.acta.springserver.global.exception.BusinessException;
 import com.acta.springserver.global.exception.ErrorCode;
+import com.acta.springserver.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class AuthService {
     private final EmailVerificationRepository emailVerificationRepository;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     public EmailCheckResponseDto checkEmailDuplicate(String email) {
         boolean exists = userRepository.existsByEmail(email);
@@ -115,6 +118,29 @@ public class AuthService {
                 .userId(savedUser.getId())
                 .email(savedUser.getEmail())
                 .nickname(savedUser.getNickname())
+                .build();
+    }
+
+    public LoginResponseDto login(String email, String password) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+
+        String accessToken = jwtTokenProvider.createAccessToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+
+        return LoginResponseDto.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .role(user.getRole().name())
+                .accessToken(accessToken)
                 .build();
     }
 
