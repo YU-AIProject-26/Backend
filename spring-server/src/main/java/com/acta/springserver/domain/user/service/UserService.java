@@ -1,6 +1,7 @@
 package com.acta.springserver.domain.user.service;
 
 import com.acta.springserver.domain.user.dto.MyInfoResponseDto;
+import com.acta.springserver.domain.user.dto.NicknameUpdateResponseDto;
 import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
 import com.acta.springserver.global.exception.BusinessException;
@@ -30,5 +31,30 @@ public class UserService {
                 .admin(user.getRole().name().equals("ADMIN"))
                 .createdAt(user.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일")))
                 .build();
+    }
+
+    @Transactional
+    public NicknameUpdateResponseDto updateMyNickname(Long userId, String nickname) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (!user.getNickname().equals(nickname) && userRepository.existsByNickname(nickname)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        user.changeNickname(nickname);
+
+        return NicknameUpdateResponseDto.builder()
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .build();
+    }
+
+    @Transactional
+    public void deleteMyAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        userRepository.delete(user);
     }
 }
