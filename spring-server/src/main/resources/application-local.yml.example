@@ -16,15 +16,15 @@ spring:
   mail:
     host: smtp.zoho.com
     port: 587
-    username: 본인_zoho_이메일주소
-    password: 본인_zoho_비밀번호_또는_앱비밀번호
+    username: your_zoho_email
+    password: your_zoho_password
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
-          from: 본인_zoho_이메일주소
+          from: your_zoho_email
 
   security:
     oauth2:
@@ -45,19 +45,16 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope:
-              - name
               - email
               - nickname
 
           kakao:
             client-id: your_kakao_rest_api_key
-            client-secret: your_kakao_client_secret
             client-name: Kakao
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope:
               - profile_nickname
-              - account_email
 
         provider:
           naver:
@@ -78,5 +75,5 @@ jwt:
 
 app:
   oauth2:
-    redirect-uri: http://localhost:5173/oauth2/success
-    failure-redirect-uri: http://localhost:5173/oauth2/failure
+    redirect-uri: http://localhost:5173/
+    failure-redirect-uri: http://localhost:5173/
