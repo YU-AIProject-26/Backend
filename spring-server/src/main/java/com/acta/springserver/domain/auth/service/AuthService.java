@@ -3,7 +3,9 @@ package com.acta.springserver.domain.auth.service;
 import com.acta.springserver.domain.auth.dto.EmailCheckResponseDto;
 import com.acta.springserver.domain.auth.dto.LoginResponseDto;
 import com.acta.springserver.domain.auth.dto.SignupResponseDto;
+import com.acta.springserver.domain.auth.entity.BlacklistedToken;
 import com.acta.springserver.domain.auth.entity.EmailVerification;
+import com.acta.springserver.domain.auth.repository.BlacklistedTokenRepository;
 import com.acta.springserver.domain.auth.repository.EmailVerificationRepository;
 import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
@@ -25,6 +27,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -142,6 +145,28 @@ public class AuthService {
                 .role(user.getRole().name())
                 .accessToken(accessToken)
                 .build();
+    }
+
+    @Transactional
+    public void logout(String authorizationHeader) {
+        String token = jwtTokenProvider.resolveToken(authorizationHeader);
+
+        if (token == null) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        try {
+            if (blacklistedTokenRepository.existsByToken(token)) {
+                return;
+            }
+
+            LocalDateTime expiredAt = jwtTokenProvider.getExpiration(token);
+
+            BlacklistedToken blacklistedToken = BlacklistedToken.create(token, expiredAt);
+            blacklistedTokenRepository.save(blacklistedToken);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
     }
 
     private String generateVerificationCode() {
