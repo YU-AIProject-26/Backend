@@ -5,6 +5,7 @@ import com.acta.springserver.domain.auth.dto.LoginResponseDto;
 import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.entity.BlacklistedToken;
 import com.acta.springserver.domain.auth.entity.EmailVerification;
+import com.acta.springserver.domain.auth.entity.EmailVerificationPurpose;
 import com.acta.springserver.domain.auth.repository.BlacklistedTokenRepository;
 import com.acta.springserver.domain.auth.repository.EmailVerificationRepository;
 import com.acta.springserver.domain.user.entity.User;
@@ -49,9 +50,14 @@ public class AuthService {
         String code = generateVerificationCode();
         LocalDateTime expiredAt = LocalDateTime.now().plusMinutes(3);
 
-        emailVerificationRepository.deleteByEmail(email);
+        emailVerificationRepository.deleteByEmailAndPurpose(email, EmailVerificationPurpose.SIGNUP);
 
-        EmailVerification emailVerification = EmailVerification.create(email, code, expiredAt);
+        EmailVerification emailVerification = EmailVerification.create(
+                email,
+                code,
+                EmailVerificationPurpose.SIGNUP,
+                expiredAt
+        );
         emailVerificationRepository.save(emailVerification);
 
         mailService.sendVerificationCodeEmail(email, code);
@@ -59,7 +65,8 @@ public class AuthService {
 
     @Transactional
     public void verifyCode(String email, String code) {
-        EmailVerification emailVerification = emailVerificationRepository.findTopByEmailOrderByCreatedAtDesc(email)
+        EmailVerification emailVerification = emailVerificationRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, EmailVerificationPurpose.SIGNUP)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
 
         if (emailVerification.isVerified()) {
@@ -93,7 +100,8 @@ public class AuthService {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
-        EmailVerification emailVerification = emailVerificationRepository.findTopByEmailOrderByCreatedAtDesc(email)
+        EmailVerification emailVerification = emailVerificationRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, EmailVerificationPurpose.SIGNUP)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
 
         if (!emailVerification.isVerified()) {
@@ -167,6 +175,74 @@ public class AuthService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
+    }
+
+    @Transactional
+    public void sendPasswordResetCode(String email) {
+        if (!userRepository.existsByEmail(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_FOUND);
+        }
+
+        String code = generateVerificationCode();
+        LocalDateTime expiredAt = LocalDateTime.now().plusMinutes(3);
+
+        emailVerificationRepository.deleteByEmailAndPurpose(email, EmailVerificationPurpose.PASSWORD_RESET);
+
+        EmailVerification emailVerification = EmailVerification.create(
+                email,
+                code,
+                EmailVerificationPurpose.PASSWORD_RESET,
+                expiredAt
+        );
+        emailVerificationRepository.save(emailVerification);
+
+        mailService.sendPasswordResetCodeEmail(email, code);
+    }
+
+    @Transactional
+    public void verifyPasswordResetCode(String email, String code) {
+        EmailVerification emailVerification = emailVerificationRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, EmailVerificationPurpose.PASSWORD_RESET)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+        if (emailVerification.isVerified()) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_VERIFIED);
+        }
+
+        if (emailVerification.isExpired()) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED);
+        }
+
+        if (!emailVerification.getCode().equals(code)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH);
+        }
+
+        emailVerification.markVerified();
+    }
+
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        EmailVerification emailVerification = emailVerificationRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, EmailVerificationPurpose.PASSWORD_RESET)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+        if (!emailVerification.isVerified()) {
+            throw new BusinessException(ErrorCode.PASSWORD_RESET_NOT_VERIFIED);
+        }
+
+        if (emailVerification.isExpired()) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED);
+        }
+
+        if (!emailVerification.getCode().equals(code)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH);
+        }
+
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        user.changePassword(encodedPassword);
     }
 
     private String generateVerificationCode() {

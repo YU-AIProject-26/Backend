@@ -42,7 +42,10 @@ public class SecurityConfig {
                                 "/api/auth/email/send-code",
                                 "/api/auth/email/verify-code",
                                 "/api/auth/signup",
-                                "/api/auth/login"
+                                "/api/auth/login",
+                                "/api/auth/password/send-code",
+                                "/api/auth/password/verify-code",
+                                "/api/auth/password/reset"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
