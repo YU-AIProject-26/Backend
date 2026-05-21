@@ -12,3 +12,16 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+  mail:
+    host: smtp.zoho.com
+    port: 587
+    username: 본인_zoho_이메일주소
+    password: 본인_zoho_비밀번호_또는_앱비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          from: 본인_zoho_이메일주소
