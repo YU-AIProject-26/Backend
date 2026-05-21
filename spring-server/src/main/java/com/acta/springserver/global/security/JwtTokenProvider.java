@@ -58,15 +58,6 @@ public class JwtTokenProvider {
         return null;
     }
 
-    public boolean validateToken(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
 
