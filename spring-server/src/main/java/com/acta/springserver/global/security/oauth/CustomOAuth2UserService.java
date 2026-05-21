@@ -3,6 +3,8 @@ package com.acta.springserver.global.security.oauth;
 import com.acta.springserver.domain.user.entity.SocialProvider;
 import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -11,9 +13,6 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,21 +31,24 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         OAuth2UserInfo userInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(registrationId, attributes);
 
-        String email = userInfo.getEmail();
-        String providerUserId = userInfo.getProviderUserId();
-        String nickname = userInfo.getNickname();
+        SocialProvider socialProvider = SocialProvider.valueOf(registrationId.toUpperCase());
 
-        if (email == null || email.isBlank()) {
-            throw new OAuth2AuthenticationException("소셜 계정 이메일 정보를 가져올 수 없습니다.");
-        }
+        String email = normalize(userInfo.getEmail());
+        String providerUserId = normalize(userInfo.getProviderUserId());
+        String nickname = normalize(userInfo.getNickname());
 
-        if (providerUserId == null || providerUserId.isBlank()) {
+        if (providerUserId == null) {
             throw new OAuth2AuthenticationException("소셜 계정 식별 정보를 가져올 수 없습니다.");
         }
 
-        SocialProvider socialProvider = SocialProvider.valueOf(registrationId.toUpperCase());
+        if (socialProvider != SocialProvider.KAKAO && email == null) {
+            throw new OAuth2AuthenticationException("소셜 계정 이메일 정보를 가져올 수 없습니다.");
+        }
 
-        User user = userRepository.findBySocialProviderAndProviderUserIdAndDeletedFalse(socialProvider, providerUserId)
+        User user = userRepository.findBySocialProviderAndProviderUserIdAndDeletedFalse(
+                        socialProvider,
+                        providerUserId
+                )
                 .orElseGet(() -> registerOrGetUser(email, nickname, socialProvider, providerUserId));
 
         return new CustomOAuth2User(user, attributes);
@@ -58,7 +60,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             SocialProvider socialProvider,
             String providerUserId
     ) {
-        if (userRepository.existsByEmail(email)) {
+        if (email != null && userRepository.existsByEmail(email)) {
             throw new OAuth2AuthenticationException("이미 가입된 이메일입니다.");
         }
 
@@ -84,5 +86,13 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             candidate = baseNickname + "_" + UUID.randomUUID().toString().substring(0, 6);
         }
         return candidate;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
