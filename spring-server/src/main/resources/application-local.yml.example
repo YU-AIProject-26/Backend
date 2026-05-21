@@ -26,6 +26,6 @@ spring:
             enable: true
           from: 본인_zoho_이메일주소
 
-  jwt:
-    secret: token
-    access-token-expiration: 3600000
+jwt:
+  secret: token
+  access-token-expiration: 3600000
