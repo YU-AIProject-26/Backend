@@ -34,7 +34,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
 
     public EmailCheckResponseDto checkEmailDuplicate(String email) {
-        boolean exists = userRepository.existsByEmail(email);
+        boolean exists = userRepository.existsByEmailAndDeletedFalse(email);
 
         return EmailCheckResponseDto.builder()
                 .available(!exists)
@@ -43,7 +43,7 @@ public class AuthService {
 
     @Transactional
     public void sendVerificationCode(String email) {
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailAndDeletedFalse(email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
@@ -92,11 +92,11 @@ public class AuthService {
             boolean termsAgreed,
             boolean privacyPolicyAgreed
     ) {
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailAndDeletedFalse(email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        if (userRepository.existsByNickname(nickname)) {
+        if (userRepository.existsByNicknameAndDeletedFalse(nickname)) {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
@@ -133,7 +133,7 @@ public class AuthService {
     }
 
     public LoginResponseDto login(String email, String password) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -179,7 +179,7 @@ public class AuthService {
 
     @Transactional
     public void sendPasswordResetCode(String email) {
-        if (!userRepository.existsByEmail(email)) {
+        if (!userRepository.existsByEmailAndDeletedFalse(email)) {
             throw new BusinessException(ErrorCode.EMAIL_NOT_FOUND);
         }
 
@@ -222,7 +222,7 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(String email, String code, String newPassword) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
 
         EmailVerification emailVerification = emailVerificationRepository
