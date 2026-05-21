@@ -55,9 +55,11 @@ public class AuthController {
         SignupResponseDto response = authService.signup(
                 request.getNickname(),
                 request.getEmail(),
-                request.getPassword()
+                request.getPassword(),
+                request.isTermsAgreed(),
+                request.isPrivacyPolicyAgreed()
         );
-
+    
         return ApiResponse.success("회원가입이 완료되었습니다.", response);
     }
 }
