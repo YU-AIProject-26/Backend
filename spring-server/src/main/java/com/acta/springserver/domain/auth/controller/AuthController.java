@@ -5,6 +5,8 @@ import com.acta.springserver.domain.auth.dto.EmailCheckRequestDto;
 import com.acta.springserver.domain.auth.dto.EmailCheckResponseDto;
 import com.acta.springserver.domain.auth.dto.EmailSendCodeRequestDto;
 import com.acta.springserver.domain.auth.dto.EmailVerifyCodeRequestDto;
+import com.acta.springserver.domain.auth.dto.LoginRequestDto;
+import com.acta.springserver.domain.auth.dto.LoginResponseDto;
 import com.acta.springserver.domain.auth.dto.SignupRequestDto;
 import com.acta.springserver.domain.auth.dto.SignupResponseDto;
 import com.acta.springserver.domain.auth.service.AuthService;
@@ -59,7 +61,19 @@ public class AuthController {
                 request.isTermsAgreed(),
                 request.isPrivacyPolicyAgreed()
         );
-    
+
         return ApiResponse.success("회원가입이 완료되었습니다.", response);
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponseDto> login(
+            @Valid @RequestBody LoginRequestDto request
+    ) {
+        LoginResponseDto response = authService.login(
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return ApiResponse.success("로그인에 성공했습니다.", response);
     }
 }
