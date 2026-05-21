@@ -47,6 +47,26 @@ public class AuthService {
         mailService.sendVerificationCodeEmail(email, code);
     }
 
+    @Transactional
+    public void verifyCode(String email, String code) {
+        EmailVerification emailVerification = emailVerificationRepository.findTopByEmailOrderByCreatedAtDesc(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+        if (emailVerification.isVerified()) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_VERIFIED);
+        }
+
+        if (emailVerification.isExpired()) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED);
+        }
+
+        if (!emailVerification.getCode().equals(code)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH);
+        }
+
+        emailVerification.markVerified();
+    }
+
     private String generateVerificationCode() {
         Random random = new Random();
         int number = 100000 + random.nextInt(900000);
