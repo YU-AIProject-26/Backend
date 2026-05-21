@@ -1,13 +1,19 @@
 package com.acta.springserver.domain.user.entity;
 
 import com.acta.springserver.common.entity.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -22,7 +28,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String password;
 
     @Column(nullable = false, unique = true, length = 30)
@@ -47,6 +53,13 @@ public class User extends BaseEntity {
     @Column
     private LocalDateTime deletedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SocialProvider socialProvider;
+
+    @Column(length = 100)
+    private String providerUserId;
+
     @Builder
     private User(
             String email,
@@ -57,7 +70,9 @@ public class User extends BaseEntity {
             boolean termsAgreed,
             boolean privacyPolicyAgreed,
             boolean deleted,
-            LocalDateTime deletedAt
+            LocalDateTime deletedAt,
+            SocialProvider socialProvider,
+            String providerUserId
     ) {
         this.email = email;
         this.password = password;
@@ -68,6 +83,8 @@ public class User extends BaseEntity {
         this.privacyPolicyAgreed = privacyPolicyAgreed;
         this.deleted = deleted;
         this.deletedAt = deletedAt;
+        this.socialProvider = socialProvider;
+        this.providerUserId = providerUserId;
     }
 
     public static User create(
@@ -87,7 +104,41 @@ public class User extends BaseEntity {
                 .privacyPolicyAgreed(privacyPolicyAgreed)
                 .deleted(false)
                 .deletedAt(null)
+                .socialProvider(SocialProvider.LOCAL)
+                .providerUserId(null)
                 .build();
+    }
+
+    public static User createSocialUser(
+            String email,
+            String nickname,
+            SocialProvider socialProvider,
+            String providerUserId
+    ) {
+        return User.builder()
+                .email(resolveSocialEmail(email, socialProvider, providerUserId))
+                .password(null)
+                .nickname(nickname)
+                .role(UserRole.USER)
+                .emailVerified(true)
+                .termsAgreed(true)
+                .privacyPolicyAgreed(true)
+                .deleted(false)
+                .deletedAt(null)
+                .socialProvider(socialProvider)
+                .providerUserId(providerUserId)
+                .build();
+    }
+
+    private static String resolveSocialEmail(
+            String email,
+            SocialProvider socialProvider,
+            String providerUserId
+    ) {
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+        return "social_" + socialProvider.name().toLowerCase() + "_" + providerUserId;
     }
 
     public void verifyEmail() {

@@ -8,18 +8,18 @@ import com.acta.springserver.domain.auth.entity.EmailVerification;
 import com.acta.springserver.domain.auth.entity.EmailVerificationPurpose;
 import com.acta.springserver.domain.auth.repository.BlacklistedTokenRepository;
 import com.acta.springserver.domain.auth.repository.EmailVerificationRepository;
+import com.acta.springserver.domain.user.entity.SocialProvider;
 import com.acta.springserver.domain.user.entity.User;
 import com.acta.springserver.domain.user.repository.UserRepository;
 import com.acta.springserver.global.exception.BusinessException;
 import com.acta.springserver.global.exception.ErrorCode;
 import com.acta.springserver.global.security.JwtTokenProvider;
+import java.time.LocalDateTime;
+import java.util.Random;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -136,6 +136,10 @@ public class AuthService {
         User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
 
+        if (user.getSocialProvider() != SocialProvider.LOCAL) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_LOCAL_LOGIN_NOT_ALLOWED);
+        }
+
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
@@ -179,8 +183,11 @@ public class AuthService {
 
     @Transactional
     public void sendPasswordResetCode(String email) {
-        if (!userRepository.existsByEmailAndDeletedFalse(email)) {
-            throw new BusinessException(ErrorCode.EMAIL_NOT_FOUND);
+        User user = userRepository.findByEmailAndDeletedFalse(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        if (user.getSocialProvider() != SocialProvider.LOCAL) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_PASSWORD_RESET_NOT_ALLOWED);
         }
 
         String code = generateVerificationCode();
@@ -224,6 +231,10 @@ public class AuthService {
     public void resetPassword(String email, String code, String newPassword) {
         User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        if (user.getSocialProvider() != SocialProvider.LOCAL) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_PASSWORD_RESET_NOT_ALLOWED);
+        }
 
         EmailVerification emailVerification = emailVerificationRepository
                 .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, EmailVerificationPurpose.PASSWORD_RESET)
