@@ -1,4 +1,4 @@
-package com.acta.springserver.common.config;
+package com.acta.springserver.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,13 +19,16 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/error",
-                                "/api/**",
                                 "/uploads/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/api/auth/check-email",
+                                "/api/auth/email/send-code",
+                                "/api/auth/email/verify-code",
+                                "/api/auth/signup"
                         ).permitAll()
-                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 );
 
         return http.build();
