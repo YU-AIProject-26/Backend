@@ -25,7 +25,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/auth/check-email",
                                 "/api/auth/email/send-code",
-                                "/api/auth/email/verify-code"
+                                "/api/auth/email/verify-code",
+                                "/api/auth/signup"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
