@@ -82,11 +82,4 @@ public class MeetingController {
             @PathVariable Long segmentId,
             @RequestBody TranscriptUpdateRequest request
     ) {
-        return ResponseEntity.ok(meetingService.updateTranscript(getUserId(authentication), meetingId, segmentId, request));
-    }
-
-    private Long getUserId(Authentication authentication) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) authentication.getPrincipal();
-        return principal.getUserId();
-    }
-}
+        return ResponseEntity.ok(meetingService.updateTranscript(getUserId(authentication), meeting
