@@ -116,6 +116,15 @@ public class MeetingService {
         return toTranscriptItemResponse(segment);
     }
 
+    @Transactional
+    public void deleteMeeting(Long meetingId) {
+        Meeting meeting = getMeeting(meetingId);
+        String audioPath = meeting.getAudioPath();
+
+        meetingRepository.delete(meeting);
+        deleteStoredAudioFile(audioPath);
+    }
+
     private Meeting getMeeting(Long meetingId) {
         return meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found."));
@@ -274,6 +283,22 @@ public class MeetingService {
         return "/uploads/" + Paths.get(audioPath).getFileName();
     }
 
+    private void deleteStoredAudioFile(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+
+        try {
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path target = Paths.get(audioPath).toAbsolutePath().normalize();
+            if (target.startsWith(uploadPath)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (IOException ignored) {
+            // Meeting deletion should not fail just because an uploaded file is already missing or locked.
+        }
+    }
+
     private void ensureDefaultTranscriptSegments(Meeting meeting) {
         if (!transcriptSegmentRepository.findByMeetingIdOrderByStartedAtSecondsAsc(meeting.getId()).isEmpty()) {
             return;
@@ -390,4 +415,3 @@ public class MeetingService {
         );
     }
 }
-

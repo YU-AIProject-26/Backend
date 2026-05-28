@@ -97,7 +97,7 @@ public class TodoService {
     }
 
     private Meeting getMeetingOrNull(Long meetingId) {
-        if (meetingId == null) {
+        if (meetingId == null || meetingId <= 0) {
             return null;
         }
         return meetingRepository.findById(meetingId)
