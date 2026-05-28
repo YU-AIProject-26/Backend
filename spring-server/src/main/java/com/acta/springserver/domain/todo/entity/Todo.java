@@ -1,6 +1,7 @@
 package com.acta.springserver.domain.todo.entity;
 
 import com.acta.springserver.domain.meeting.entity.Meeting;
+import com.acta.springserver.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -28,6 +29,10 @@ public class Todo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "meeting_id")
@@ -63,6 +68,7 @@ public class Todo {
 
     @Builder
     public Todo(
+            User user,
             Meeting meeting,
             String title,
             String sourceTitle,
@@ -74,6 +80,7 @@ public class Todo {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this.user = user;
         this.meeting = meeting;
         this.title = title;
         this.sourceTitle = sourceTitle;
@@ -119,4 +126,3 @@ public class Todo {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

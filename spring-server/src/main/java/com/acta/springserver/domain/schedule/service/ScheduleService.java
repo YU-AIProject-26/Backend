@@ -7,6 +7,8 @@ import com.acta.springserver.domain.schedule.dto.response.ScheduleListResponse;
 import com.acta.springserver.domain.schedule.dto.response.ScheduleResponse;
 import com.acta.springserver.domain.schedule.entity.Schedule;
 import com.acta.springserver.domain.schedule.repository.ScheduleRepository;
+import com.acta.springserver.domain.user.entity.User;
+import com.acta.springserver.domain.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,23 +24,26 @@ public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
     private final MeetingRepository meetingRepository;
+    private final UserRepository userRepository;
 
-    public ScheduleListResponse getSchedules() {
-        List<ScheduleResponse> items = scheduleRepository.findAllByOrderByStartsAtAsc().stream()
+    public ScheduleListResponse getSchedules(Long userId) {
+        List<ScheduleResponse> items = scheduleRepository.findAllByUserIdOrderByStartsAtAsc(userId).stream()
                 .map(this::toResponse)
                 .toList();
         return new ScheduleListResponse(items);
     }
 
     @Transactional
-    public ScheduleResponse createSchedule(ScheduleCreateRequest request) {
+    public ScheduleResponse createSchedule(Long userId, ScheduleCreateRequest request) {
+        User user = getUser(userId);
         Meeting meeting = null;
         if (request.getMeetingId() != null) {
-            meeting = meetingRepository.findById(request.getMeetingId())
+            meeting = meetingRepository.findByIdAndUserId(request.getMeetingId(), userId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found."));
         }
 
         Schedule schedule = Schedule.builder()
+                .user(user)
                 .meeting(meeting)
                 .title(request.getTitle())
                 .startsAt(LocalDateTime.parse(request.getStartsAt()))
@@ -49,10 +54,15 @@ public class ScheduleService {
         return toResponse(scheduleRepository.save(schedule));
     }
 
-    public List<ScheduleResponse> getMeetingSchedules(Long meetingId) {
-        return scheduleRepository.findByMeetingIdOrderByStartsAtAsc(meetingId).stream()
+    public List<ScheduleResponse> getMeetingSchedules(Long userId, Long meetingId) {
+        return scheduleRepository.findByMeetingIdAndUserIdOrderByStartsAtAsc(meetingId, userId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private User getUser(Long userId) {
+        return userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
     }
 
     private ScheduleResponse toResponse(Schedule schedule) {
@@ -66,4 +76,3 @@ public class ScheduleService {
         );
     }
 }
-

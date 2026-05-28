@@ -2,14 +2,18 @@ package com.acta.springserver.domain.meeting.entity;
 
 import com.acta.springserver.domain.schedule.entity.Schedule;
 import com.acta.springserver.domain.todo.entity.Todo;
+import com.acta.springserver.domain.user.entity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
@@ -29,6 +33,10 @@ public class Meeting {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @Column(nullable = false, length = 255)
     private String title;
@@ -86,6 +94,7 @@ public class Meeting {
 
     @Builder
     public Meeting(
+            User user,
             String title,
             String description,
             String oneLineSummary,
@@ -102,6 +111,7 @@ public class Meeting {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this.user = user;
         this.title = title;
         this.description = description;
         this.oneLineSummary = oneLineSummary;
@@ -160,4 +170,3 @@ public class Meeting {
         this.updatedAt = LocalDateTime.now();
     }
 }
-
