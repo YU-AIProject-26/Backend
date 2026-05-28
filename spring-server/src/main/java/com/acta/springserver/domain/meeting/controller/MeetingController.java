@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -55,6 +56,12 @@ public class MeetingController {
         return ResponseEntity.ok(meetingService.updateMeeting(meetingId, request));
     }
 
+    @DeleteMapping("/{meetingId}")
+    public ResponseEntity<Void> deleteMeeting(@PathVariable Long meetingId) {
+        meetingService.deleteMeeting(meetingId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{meetingId}/transcripts/{segmentId}")
     public ResponseEntity<TranscriptItemResponse> updateTranscript(
             @PathVariable Long meetingId,
@@ -64,4 +71,3 @@ public class MeetingController {
         return ResponseEntity.ok(meetingService.updateTranscript(meetingId, segmentId, request));
     }
 }
-
