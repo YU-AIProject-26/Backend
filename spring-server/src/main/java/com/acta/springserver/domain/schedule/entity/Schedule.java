@@ -1,6 +1,7 @@
 package com.acta.springserver.domain.schedule.entity;
 
 import com.acta.springserver.domain.meeting.entity.Meeting;
+import com.acta.springserver.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -27,6 +28,10 @@ public class Schedule {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "meeting_id")
     private Meeting meeting;
 
@@ -43,12 +48,14 @@ public class Schedule {
 
     @Builder
     public Schedule(
+            User user,
             Meeting meeting,
             String title,
             LocalDateTime startsAt,
             String location,
             Integer participantCount
     ) {
+        this.user = user;
         this.meeting = meeting;
         this.title = title;
         this.startsAt = startsAt;
@@ -56,4 +63,3 @@ public class Schedule {
         this.participantCount = participantCount;
     }
 }
-
