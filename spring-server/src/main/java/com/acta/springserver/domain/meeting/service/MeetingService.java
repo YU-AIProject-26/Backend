@@ -18,6 +18,8 @@ import com.acta.springserver.domain.schedule.dto.response.ScheduleResponse;
 import com.acta.springserver.domain.schedule.service.ScheduleService;
 import com.acta.springserver.domain.todo.dto.response.TodoItemResponse;
 import com.acta.springserver.domain.todo.entity.Todo;
+import com.acta.springserver.domain.user.entity.User;
+import com.acta.springserver.domain.user.repository.UserRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,12 +49,13 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final TranscriptSegmentRepository transcriptSegmentRepository;
     private final ScheduleService scheduleService;
+    private final UserRepository userRepository;
 
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
-    public List<MeetingListResponse> getMeetings(String q, String status) {
-        return meetingRepository.findAll().stream()
+    public List<MeetingListResponse> getMeetings(Long userId, String q, String status) {
+        return meetingRepository.findAllByUserId(userId).stream()
                 .filter(meeting -> matchesQuery(meeting, q))
                 .filter(meeting -> matchesStatus(meeting, status))
                 .sorted(Comparator.comparing(Meeting::getMeetingAt).reversed())
@@ -60,17 +63,19 @@ public class MeetingService {
                 .toList();
     }
 
-    public MeetingDetailResponse getMeetingDetail(Long meetingId) {
-        Meeting meeting = getMeeting(meetingId);
-        return toMeetingDetailResponse(meeting);
+    public MeetingDetailResponse getMeetingDetail(Long userId, Long meetingId) {
+        Meeting meeting = getMeeting(userId, meetingId);
+        return toMeetingDetailResponse(userId, meeting);
     }
 
     @Transactional
-    public MeetingDetailResponse createMeeting(MeetingCreateRequest request) {
+    public MeetingDetailResponse createMeeting(Long userId, MeetingCreateRequest request) {
+        User user = getUser(userId);
         LocalDateTime now = LocalDateTime.now();
         String audioPath = saveFile(request.getAudioFile());
 
         Meeting meeting = Meeting.builder()
+                .user(user)
                 .title(resolveTitle(request.getTitle(), request.getAudioFile()))
                 .description(request.getDescription())
                 .oneLineSummary(audioPath != null ? "Upload completed. Waiting for analysis." : request.getDescription())
@@ -87,12 +92,12 @@ public class MeetingService {
 
         Meeting saved = meetingRepository.save(meeting);
         ensureDefaultTranscriptSegments(saved);
-        return toMeetingDetailResponse(saved);
+        return toMeetingDetailResponse(userId, saved);
     }
 
     @Transactional
-    public MeetingDetailResponse updateMeeting(Long meetingId, MeetingUpdateRequest request) {
-        Meeting meeting = getMeeting(meetingId);
+    public MeetingDetailResponse updateMeeting(Long userId, Long meetingId, MeetingUpdateRequest request) {
+        Meeting meeting = getMeeting(userId, meetingId);
         meeting.update(
                 request.getTitle(),
                 request.getDescription(),
@@ -104,11 +109,12 @@ public class MeetingService {
                 request.getTags(),
                 parseStatus(request.getStatus())
         );
-        return toMeetingDetailResponse(meeting);
+        return toMeetingDetailResponse(userId, meeting);
     }
 
     @Transactional
-    public TranscriptItemResponse updateTranscript(Long meetingId, Long segmentId, TranscriptUpdateRequest request) {
+    public TranscriptItemResponse updateTranscript(Long userId, Long meetingId, Long segmentId, TranscriptUpdateRequest request) {
+        getMeeting(userId, meetingId);
         TranscriptSegment segment = transcriptSegmentRepository.findByIdAndMeetingId(segmentId, meetingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transcript segment not found."));
 
@@ -116,9 +122,23 @@ public class MeetingService {
         return toTranscriptItemResponse(segment);
     }
 
-    private Meeting getMeeting(Long meetingId) {
-        return meetingRepository.findById(meetingId)
+    @Transactional
+    public void deleteMeeting(Long userId, Long meetingId) {
+        Meeting meeting = getMeeting(userId, meetingId);
+        String audioPath = meeting.getAudioPath();
+
+        meetingRepository.delete(meeting);
+        deleteStoredAudioFile(audioPath);
+    }
+
+    private Meeting getMeeting(Long userId, Long meetingId) {
+        return meetingRepository.findByIdAndUserId(meetingId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found."));
+    }
+
+    private User getUser(Long userId) {
+        return userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
     }
 
     private boolean matchesQuery(Meeting meeting, String q) {
@@ -156,7 +176,7 @@ public class MeetingService {
         );
     }
 
-    private MeetingDetailResponse toMeetingDetailResponse(Meeting meeting) {
+    private MeetingDetailResponse toMeetingDetailResponse(Long userId, Meeting meeting) {
         List<TodoItemResponse> todos = meeting.getTodos().stream()
                 .sorted(Comparator.comparing(todo -> todo.getDueDate() != null ? todo.getDueDate() : LocalDate.MAX))
                 .map(this::toTodoItemResponse)
@@ -182,7 +202,7 @@ public class MeetingService {
                 defaultParticipationStats(),
                 defaultFocusMetrics(),
                 todos,
-                buildScheduleResponses(meeting.getId())
+                buildScheduleResponses(userId, meeting.getId())
         );
     }
 
@@ -272,6 +292,22 @@ public class MeetingService {
             return null;
         }
         return "/uploads/" + Paths.get(audioPath).getFileName();
+    }
+
+    private void deleteStoredAudioFile(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+
+        try {
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path target = Paths.get(audioPath).toAbsolutePath().normalize();
+            if (target.startsWith(uploadPath)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (IOException ignored) {
+            // Meeting deletion should not fail just because an uploaded file is already missing or locked.
+        }
     }
 
     private void ensureDefaultTranscriptSegments(Meeting meeting) {
@@ -367,8 +403,8 @@ public class MeetingService {
         );
     }
 
-    private List<ScheduleItemResponse> buildScheduleResponses(Long meetingId) {
-        List<ScheduleResponse> schedules = scheduleService.getMeetingSchedules(meetingId);
+    private List<ScheduleItemResponse> buildScheduleResponses(Long userId, Long meetingId) {
+        List<ScheduleResponse> schedules = scheduleService.getMeetingSchedules(userId, meetingId);
         if (schedules.isEmpty()) {
             return defaultSchedules();
         }
@@ -390,4 +426,3 @@ public class MeetingService {
         );
     }
 }
-

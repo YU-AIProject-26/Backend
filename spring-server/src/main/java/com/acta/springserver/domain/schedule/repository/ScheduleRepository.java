@@ -9,5 +9,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findAllByOrderByStartsAtAsc();
 
     List<Schedule> findByMeetingIdOrderByStartsAtAsc(Long meetingId);
-}
 
+    List<Schedule> findAllByUserIdOrderByStartsAtAsc(Long userId);
+
+    List<Schedule> findByMeetingIdAndUserIdOrderByStartsAtAsc(Long meetingId, Long userId);
+}

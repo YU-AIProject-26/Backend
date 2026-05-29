@@ -10,6 +10,8 @@ import com.acta.springserver.domain.todo.entity.Todo;
 import com.acta.springserver.domain.todo.entity.TodoPriority;
 import com.acta.springserver.domain.todo.entity.TodoStatus;
 import com.acta.springserver.domain.todo.repository.TodoRepository;
+import com.acta.springserver.domain.user.entity.User;
+import com.acta.springserver.domain.user.repository.UserRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -27,9 +29,10 @@ public class TodoService {
 
     private final TodoRepository todoRepository;
     private final MeetingRepository meetingRepository;
+    private final UserRepository userRepository;
 
-    public TodoListResponse getTodos(String q, String status, String priority, String assigneeName, String sortBy) {
-        List<Todo> allTodos = todoRepository.findAllByOrderByCreatedAtDesc();
+    public TodoListResponse getTodos(Long userId, String q, String status, String priority, String assigneeName, String sortBy) {
+        List<Todo> allTodos = todoRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
 
         List<Todo> filtered = allTodos.stream()
                 .filter(todo -> matchesQuery(todo, q))
@@ -49,11 +52,13 @@ public class TodoService {
     }
 
     @Transactional
-    public TodoItemResponse createTodo(TodoCreateRequest request) {
-        Meeting meeting = getMeetingOrNull(request.getMeetingId());
+    public TodoItemResponse createTodo(Long userId, TodoCreateRequest request) {
+        User user = getUser(userId);
+        Meeting meeting = getMeetingOrNull(userId, request.getMeetingId());
         LocalDateTime now = LocalDateTime.now();
 
         Todo todo = Todo.builder()
+                .user(user)
                 .meeting(meeting)
                 .title(request.getTitle())
                 .sourceTitle(resolveSourceTitle(request.getSourceTitle(), meeting))
@@ -71,8 +76,8 @@ public class TodoService {
     }
 
     @Transactional
-    public TodoItemResponse updateTodo(Long todoId, TodoUpdateRequest request) {
-        Todo todo = getTodo(todoId);
+    public TodoItemResponse updateTodo(Long userId, Long todoId, TodoUpdateRequest request) {
+        Todo todo = getTodo(userId, todoId);
         todo.update(
                 request.getTitle(),
                 request.getSourceTitle(),
@@ -86,22 +91,27 @@ public class TodoService {
     }
 
     @Transactional
-    public void deleteTodo(Long todoId) {
-        Todo todo = getTodo(todoId);
+    public void deleteTodo(Long userId, Long todoId) {
+        Todo todo = getTodo(userId, todoId);
         todoRepository.delete(todo);
     }
 
-    private Todo getTodo(Long todoId) {
-        return todoRepository.findById(todoId)
+    private Todo getTodo(Long userId, Long todoId) {
+        return todoRepository.findByIdAndUserId(todoId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Todo not found."));
     }
 
-    private Meeting getMeetingOrNull(Long meetingId) {
-        if (meetingId == null) {
+    private Meeting getMeetingOrNull(Long userId, Long meetingId) {
+        if (meetingId == null || meetingId <= 0) {
             return null;
         }
-        return meetingRepository.findById(meetingId)
+        return meetingRepository.findByIdAndUserId(meetingId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found."));
+    }
+
+    private User getUser(Long userId) {
+        return userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
     }
 
     private String resolveSourceTitle(String sourceTitle, Meeting meeting) {

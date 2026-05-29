@@ -7,11 +7,14 @@ import com.acta.springserver.domain.meeting.dto.response.MeetingDetailResponse;
 import com.acta.springserver.domain.meeting.dto.response.MeetingListResponse;
 import com.acta.springserver.domain.meeting.dto.response.TranscriptItemResponse;
 import com.acta.springserver.domain.meeting.service.MeetingService;
+import com.acta.springserver.global.security.CustomUserPrincipal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,37 +34,59 @@ public class MeetingController {
 
     @GetMapping
     public ResponseEntity<List<MeetingListResponse>> getMeetings(
+            Authentication authentication,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status
     ) {
-        return ResponseEntity.ok(meetingService.getMeetings(q, status));
+        return ResponseEntity.ok(meetingService.getMeetings(getUserId(authentication), q, status));
     }
 
     @GetMapping("/{meetingId}")
-    public ResponseEntity<MeetingDetailResponse> getMeetingDetail(@PathVariable Long meetingId) {
-        return ResponseEntity.ok(meetingService.getMeetingDetail(meetingId));
+    public ResponseEntity<MeetingDetailResponse> getMeetingDetail(
+            Authentication authentication,
+            @PathVariable Long meetingId
+    ) {
+        return ResponseEntity.ok(meetingService.getMeetingDetail(getUserId(authentication), meetingId));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<MeetingDetailResponse> createMeeting(@ModelAttribute MeetingCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(meetingService.createMeeting(request));
+    public ResponseEntity<MeetingDetailResponse> createMeeting(
+            Authentication authentication,
+            @ModelAttribute MeetingCreateRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(meetingService.createMeeting(getUserId(authentication), request));
     }
 
     @PatchMapping("/{meetingId}")
     public ResponseEntity<MeetingDetailResponse> updateMeeting(
+            Authentication authentication,
             @PathVariable Long meetingId,
             @RequestBody MeetingUpdateRequest request
     ) {
-        return ResponseEntity.ok(meetingService.updateMeeting(meetingId, request));
+        return ResponseEntity.ok(meetingService.updateMeeting(getUserId(authentication), meetingId, request));
+    }
+
+    @DeleteMapping("/{meetingId}")
+    public ResponseEntity<Void> deleteMeeting(
+            Authentication authentication,
+            @PathVariable Long meetingId
+    ) {
+        meetingService.deleteMeeting(getUserId(authentication), meetingId);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{meetingId}/transcripts/{segmentId}")
     public ResponseEntity<TranscriptItemResponse> updateTranscript(
+            Authentication authentication,
             @PathVariable Long meetingId,
             @PathVariable Long segmentId,
             @RequestBody TranscriptUpdateRequest request
     ) {
-        return ResponseEntity.ok(meetingService.updateTranscript(meetingId, segmentId, request));
+        return ResponseEntity.ok(meetingService.updateTranscript(getUserId(authentication), meetingId, segmentId, request));
+    }
+
+    private Long getUserId(Authentication authentication) {
+        CustomUserPrincipal principal = (CustomUserPrincipal) authentication.getPrincipal();
+        return principal.getUserId();
     }
 }
-
