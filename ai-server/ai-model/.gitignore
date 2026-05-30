@@ -30,3 +30,6 @@ my_whisper_lora/
 /labeling/
 /resource/
 /dataset_processed/
+
+# AI 모델 가중치 파일 깃허브 업로드 방지
+models/
