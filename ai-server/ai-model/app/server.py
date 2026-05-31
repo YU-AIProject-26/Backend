@@ -216,7 +216,7 @@ add_routes(
     disabled_endpoints=["playground"],
 )
 
-# ... (위쪽 코드는 동업자 원본 100% 그대로 유지) ...
+# ============================================
 
 @app.post("/api/analyze-meeting", summary="음성 회의록 화자분리 및 요약 분석")
 async def analyze_meeting(file: UploadFile = File(...)):
@@ -235,13 +235,16 @@ async def analyze_meeting(file: UploadFile = File(...)):
     if stt_response.get("status") == "error":
         raise HTTPException(status_code=500, detail=stt_response.get("message"))
         
-    # 2. STT가 성공적으로 완료되었다면, 뽑아낸 한글 텍스트를 변수에 저장
+    # STT가 성공적으로 완료되었다면, 뽑아낸 한글 텍스트를 변수에 저장
     extracted_text = stt_response.get("stt_result", "")
     
     try:
-        # 3. 뽑아낸 텍스트를 동업자가 만든 '회의 요약 AI(meeting_summary_chain)'로 넘김
+        # 텍스트를 '회의 요약 AI(meeting_summary_chain)'로 넘김
         # (주의: 동업자의 MeetingSummaryInput 스키마에 따라 키값이 "text"가 아닐 수 있으니 에러 시 확인 필요)
-        summary_result = await meeting_summary_chain.ainvoke({"transcript": extracted_text})
+        
+        # 모델명 받고 주석해제
+        # summary_result = await meeting_summary_chain.ainvoke({"transcript": extracted_text}) 
+        summary_result = "동업자한테 모델명 받기 전 임시 요약 텍스트입니다. 통신 성공!"
         
         # 4. 최종 결과 반환 (원본 STT 텍스트 + 요약된 회의록을 모두 스프링 부트로 전달)
         return {

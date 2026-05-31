@@ -29,8 +29,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 300MB
+      max-request-size: 300MB
     
   # JPA(DB) 에러를 막기 위한 가짜 DB(H2) 설정
   datasource:
