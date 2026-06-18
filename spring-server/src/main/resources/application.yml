@@ -1,13 +1,69 @@
-spring :
-    application :
-        name : spring-server
+# spring :
+#     application :
+#         name : spring-server
 
-    profiles :
-        active : local
+#     profiles :
+#         active : local
 
-server :
-    port : 8080
+# server :
+#     port : 8080
 
-springdoc :
-    swagger-ui :
-        path : /swagger-ui.html
+# springdoc :
+#     swagger-ui :
+#         path : /swagger-ui.html
+
+spring:
+  application:
+    name: spring-server
+
+  profiles:
+    active: local
+  
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-google-client-id
+            client-secret: dummy-google-client-secret
+
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 300MB
+    
+  # JPA(DB) 에러를 막기 위한 가짜 DB(H2) 설정
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    defer-datasource-initialization: true
+
+  # Mail 에러를 막기 위한 가짜 메일 서버 설정
+  mail:
+    host: localhost
+    port: 2525
+    username: dummy_user
+    password: dummy_password
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Security(JWT) 에러를 막기 위한 가짜 토큰 설정
+jwt:
+  secret: this-is-very-long-secret-key-for-local-development-test-do-not-use-in-production
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
+
+app:
+  oauth2:
+    redirect-uri: http://localhost:3000/oauth2/redirect
+    failure-redirect-uri: http://localhost:3000/oauth2/fail

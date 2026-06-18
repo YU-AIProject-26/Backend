@@ -25,3 +25,11 @@ result.json
 
 # AI 모델 가중치 폴더
 my_whisper_lora/
+
+# 데이터 폴더
+/labeling/
+/resource/
+/dataset_processed/
+
+# AI 모델 가중치 파일 깃허브 업로드 방지
+models/

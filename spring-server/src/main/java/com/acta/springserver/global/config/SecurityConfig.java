@@ -53,7 +53,8 @@ public class SecurityConfig {
                                 "/api/auth/password/verify-code",
                                 "/api/auth/password/reset",
                                 "/oauth2/**",
-                                "/login/oauth2/**"
+                                "/login/oauth2/**",
+                                "/api/test-ai/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

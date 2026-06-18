@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from langserve import add_routes
 
-from voice_analyzer.pipeline import lifespan, analyze_voice_meeting
+from app.pipeline import lifespan, analyze_voice_meeting
 
 try:
     from .chains import ChatChain, LLM, TopicChain, Translator
@@ -216,32 +216,42 @@ add_routes(
     disabled_endpoints=["playground"],
 )
 
+# ============================================
+
 @app.post("/api/analyze-meeting", summary="음성 회의록 화자분리 및 요약 분석")
 async def analyze_meeting(file: UploadFile = File(...)):
     """
     프론트엔드 또는 백엔드에서 오디오 파일을 POST로 전송하면,
     화자 분리 -> STT -> LangChain 요약 후 회의록 JSON 반환.
     """
-    return await analyze_voice_meeting(file)
-
-rag_file = find_rag_file()
-if rag_file:
+    
+    # =====================================================================
+    # STT 결과와 요약 모델(LangChain) 연결 파트
+    # =====================================================================
+    
+    # pipeline.py에서 STT 분석 먼저 실행
+    stt_response = await analyze_voice_meeting(file)
+    
+    if stt_response.get("status") == "error":
+        raise HTTPException(status_code=500, detail=stt_response.get("message"))
+        
+    # STT가 성공적으로 완료되었다면, 뽑아낸 한글 텍스트를 변수에 저장
+    extracted_text = stt_response.get("stt_result", "")
+    
     try:
-        add_routes(
-            app,
-            RagChain(
-                file_path=str(rag_file),
-                model=settings.model_name,
-                embedding_model=settings.rag_embedding_model,
-            ).create(),
-            path="/rag",
-        )
-        logger.info("RAG route enabled with %s", rag_file)
+        # 텍스트를 '회의 요약 AI(meeting_summary_chain)'로 넘김
+        # (주의: 동업자의 MeetingSummaryInput 스키마에 따라 키값이 "text"가 아닐 수 있으니 에러 시 확인 필요)
+        
+        # 모델명 받고 주석해제
+        # summary_result = await meeting_summary_chain.ainvoke({"transcript": extracted_text}) 
+        summary_result = "동업자한테 모델명 받기 전 임시 요약 텍스트입니다. 통신 성공!"
+        
+        # 4. 최종 결과 반환 (원본 STT 텍스트 + 요약된 회의록을 모두 스프링 부트로 전달)
+        return {
+            "status": "success",
+            "stt_original_text": extracted_text,
+            "summary": summary_result
+        }
+        
     except Exception as exc:
-        logger.exception("Failed to initialize RAG route: %s", exc)
-else:
-    logger.warning("Skipping /rag route because no PDF was found.")
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host=settings.host, port=settings.port)
+        raise HTTPException(status_code=500, detail=f"요약 분석 중 오류 발생: {str(exc)}")
